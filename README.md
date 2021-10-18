@@ -30,5 +30,8 @@ For help use;
 ./n_mask_gen.R help
 
 
+./n_mask_gen.R -s test_data/test_seq.fasta -t 1 -n test_output -o test_output
+
+
 
 
