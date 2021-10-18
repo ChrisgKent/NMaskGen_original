@@ -9,8 +9,10 @@ R
 CRAN
 -	tidyverse
 -	argparser
+
 Bioconductor
 -	msa
 -	biostrings
+
 bedtools 
 
