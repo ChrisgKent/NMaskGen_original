@@ -1,3 +1,5 @@
+#!/usr/bin/env Rscript
+
 cran <- list("tidyverse",
           "BiocManager",
           "readxl",
