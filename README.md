@@ -10,7 +10,7 @@ chmod +x {script.R}
 
 Run the package installing script:
 
-./package_instal.R
+./package_install.R
 
 To run use:
 
