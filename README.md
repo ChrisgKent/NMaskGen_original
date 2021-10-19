@@ -3,6 +3,7 @@ Generates a .fasta, were any base position with sequence variability is masked v
 
 # Installation 
 All R scripts needs to be made executable
+
 chmod +x {script.R}
 
 # Useage
