@@ -76,8 +76,9 @@ region_data <- inner_join(country_data, data2, by = "name") %>%
 # Grouping by sub-region
 region_data2 <- region_data %>%
   group_by(`sub-region`) %>%
-  summarise(prop = sum(prop)) %>%
-  arrange(desc(prop))
+  summarise(prop = sum(prop),
+            count = sum(total)) %>%
+  arrange(desc(count))
 
 percent <- sum(region_data2$prop)*100
 
