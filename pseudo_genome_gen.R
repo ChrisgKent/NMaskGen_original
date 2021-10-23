@@ -26,7 +26,7 @@ pseudo_gen <- function(x){
   names(sub_seq_set) <- sub_seqs_names
   
   # Runs MSA clustal Omega on the sequences
-  cat(paste0("Running ClustalOmega on ", x))
+  cat(paste0("Running ClustalOmega on ", x), "\n")
   msa_seqs <- msa::msaClustalOmega(sub_seq_set)
   
   # Uses the consensus Sequence as the pseudo Genome
@@ -34,7 +34,7 @@ pseudo_gen <- function(x){
   names(msa_consen) <- paste0(x, "_pseudo_genome")
   
   # Writes the pseudo Genome as a fasta
-  cat(paste0("Saving files for ", x))
+  cat(paste0("Saving files for ", x),"\n")
   writeXStringSet(msa_consen, paste0("UK_scheme_data/pseudo_genomes/", x, "_pseudo_genome.fasta"))
   
   # Generates and writes a log file containing all seqs that were used in pseudo Genome generation
