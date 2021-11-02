@@ -53,15 +53,52 @@ for(i in 1:ncol(conMat_prop)){
 }
 
 # Generates a .bed file which contains the all locations.
-bed_data <- data.frame(pos_1base = 1:length(max_prop),
+bed_data <- data.frame(pos_1base = (1:length(max_prop)),
                        pos_0base = (1:length(max_prop))-1,
                        max_prop,
                        mask =  max_prop < threshold)
 
+# Determins which sequence each N comes from
+bed_test <- bed_data %>% 
+  filter(mask == TRUE) %>%
+  select(-pos_0base) %>% 
+  mutate(seq_source = "NA")
+
+## Turns the MSA object into a BString Set for ease of use
+msa_test <- msa_data %>% BStringSet()
+
+## For each position to be masked, the most common base is determined. 
+## Any sequence that does not the most common base at the position is collapsed into a single string and added to the seq_source
+suppressWarnings(
+  for(i in 1:nrow(bed_test)){
+    for_loop_dat <- Biostrings::subseq(msa_test, start =  bed_test$pos_1base[i], width = 1)
+    for_loop_consen <- consensusMatrix(for_loop_dat)
+    most_pop_symb <- rownames(for_loop_consen)[for_loop_consen == max(for_loop_consen)]
+    
+    concen <- paste0("consen(",most_pop_symb,")")
+    res <- data.frame(names = names(for_loop_dat)[for_loop_dat != most_pop_symb],
+                      base = "NA")
+    
+    for(j in 1:nrow(res)){
+      res$base[j] <- for_loop_dat[names(for_loop_dat) == res$names[j]]
+    }
+    text <- res %>% 
+      mutate(txt = paste0(names,"(", base,")")) %>%
+      .$txt %>%
+      unlist(use.names = FALSE) %>%
+      paste0(., collapse = " | ") %>%
+      paste0(concen, " | ", .)
+    
+    bed_test$seq_source[i] <- text
+})
+
 # Determines if user has provided custom mask base.
 if(is.na(argv$mask_base)){
   # If the mask_base if left empty
-  consen_seq <- consensusString(msa_data) %>% DNAStringSet()
+  consen_seq <- msa::msaConsensusSequence(msa_data) %>%
+    str_replace_all("\\?", "N") %>%
+    str_replace_all("-", "N") %>%
+    DNAStringSet()
   names(consen_seq) <- c("ClustalOmega_consensus")
   cat(paste0("Saving read in N-Mask base \n"))
 }else{
@@ -76,12 +113,12 @@ cat(paste0("Saving N-Mask base \n"))
 writeXStringSet(consen_seq, consen_file_name, format = "fasta")
 
 # Generates anf writes the bed file, using only the positions that need masking
-bed_file <- bed_data %>% 
-  filter(mask == TRUE) %>% 
+bed_file <- bed_test %>% 
   mutate(chrom = names(consen_seq),
-         chromStart = pos_0base,
-         chromEnd = pos_0base+1) %>%
-  select(chrom,chromStart,chromEnd)
+         chromStart = pos_1base-1,
+         chromEnd = pos_1base,
+         name = seq_source) %>%
+  select(chrom,chromStart,chromEnd,name)
 
 cat(paste0("Saving .bed file \n"))
 
