@@ -1,7 +1,8 @@
 #!/usr/bin/env Rscript
-library(tidyverse)
-library(Biostrings)
-library(argparser)
+suppressMessages(library(tidyverse))
+suppressMessages(library(Biostrings))
+suppressMessages(library(argparser))
+
 
 p <- arg_parser("pseudo genome Generator") 
 # Adding flags
