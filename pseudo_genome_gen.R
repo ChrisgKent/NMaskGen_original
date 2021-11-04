@@ -7,8 +7,21 @@ p <- arg_parser("pseudo genome Generator")
 # Adding flags
 p <- add_argument(p, "--input", help="input directory")
 p <- add_argument(p, "--output", help="output directory")
+p <- add_argument(p, "--repair", help="Use a set genome to repair 5' and 3' regions (TRUE/FALSE)")
+p <- add_argument(p, "--repair_genome", help= "The dir of the ref genome")
+p <- add_argument(p, "--repair_t", help= "Number of bases from each end (defalt = 100bp). Not funcitonal ")
 
 argv <- parse_args(p)
+
+# If the repair argument is TRUE reads in the referance genome wanted 
+repair <- as.logical(argv$repair)
+if(repair){
+  repair_ref <- readBStringSet(argv$repair_genome) %>%
+    DNAStringSet()
+  cat("Reading in Ref Genome")
+  repair_t <- 100
+  }
+
 
 # Finds all PANGO lineages dirs
 files <- list.files(argv$input) %>% 
@@ -43,6 +56,37 @@ pseudo_gen <- function(x){
     str_replace_all("-", "N") %>%
     BStringSet()
   names(msa_consen) <- paste0(x, "_pseudo_genome")
+  
+  if(repair){ 
+    # Aligns the pseudo to the referance
+    repair1 <- msaClustalOmega(c(msa_consen, repair_ref), type = "dna")
+    repair2 <- BStringSet(repair1)
+    
+    # Determins if both seqeucnes agree at each position
+    conMat <- consensusMatrix(repair1)
+    conMat <- conMat[rowSums(conMat) !=0,]
+    conMax <- integer()
+    for(i in 1:ncol(conMat)){
+      conMax[i] <- max(conMat[,i])
+    }
+    repair_dat <- data.frame(pos= 1:ncol(conMat), concen = conMax)
+    
+    # Finds the first site of consensus between ref and pysudo
+    f_2 <- repair_dat[repair_dat$concen == 2,] %>% .[,-2] %>% min()
+    
+    # Finds the last site of Consen between ref and pysudo
+    l_2 <- repair_dat[repair_dat$concen == 2,] %>% .[,-2] %>% max()
+    
+    # Repairs the start
+    ## By replacing the pseudo genomes sequecnes with the ref upto the first site of consensus. This should just replace the tails
+    repair2[[1]][1:f_2-1] <- repair2[[2]] %>% Biostrings::subseq(start = 1, end = f_2-1)
+    # Repairs the end 
+    repair2[[1]][(l_2+1):length(repair2[[1]])] <- repair2[[2]] %>% Biostrings::subseq(start = (l_2+1), end = length(repair2[[1]]))
+    
+    # Returns the repaired genome
+    msa_consen <- repair2[[1]]
+                                                                                                                                                                                                              
+  }
   
   # Writes the pseudo Genome as a fasta
   cat(paste0("Saving files for ", x),"\n")
