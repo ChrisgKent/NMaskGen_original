@@ -9,7 +9,7 @@ p <- add_argument(p, "--input", help="input directory")
 p <- add_argument(p, "--output", help="output directory")
 p <- add_argument(p, "--repair", help="Use a set genome to repair 5' and 3' regions (TRUE/FALSE)")
 p <- add_argument(p, "--repair_genome", help= "The dir of the ref genome")
-p <- add_argument(p, "--repair_t", help= "Number of bases from each end (defalt = 100bp). Not funcitonal ")
+p <- add_argument(p, "--mc", help= "Number of Cores")
 
 argv <- parse_args(p)
 
@@ -58,7 +58,7 @@ pseudo_gen <- function(x){
   names(msa_consen) <- paste0(x, "_pseudo_genome")
   
   if(repair){ 
-    cat("Repairing Genomes ")
+    cat("Repairing Genomes \n")
     # Aligns the pseudo to the referance
     repair1 <- msaClustalOmega(c(msa_consen, repair_ref), type = "dna")
     repair2 <- BStringSet(repair1)
@@ -85,7 +85,8 @@ pseudo_gen <- function(x){
     repair2[[1]][(l_2+1):length(repair2[[1]])] <- repair2[[2]] %>% Biostrings::subseq(start = (l_2+1), end = length(repair2[[1]]))
     
     # Returns the repaired genome
-    msa_consen <- repair2[[1]]
+    msa_consen <- repair2[[1]] %>% BStringSet()
+    names(msa_consen) <- names(repair2)[1]
                                                                                                                                                                                                               
   }
   
@@ -100,14 +101,13 @@ pseudo_gen <- function(x){
   }else{
     log <- paste(paste0("Seqs used in ", x, "_pseudo_genome: \n"), paste0(sub_seqs_names, collapse = "\n")) 
   }
-  
-  log <- paste(paste0("Seqs used in ", x, "_pseudo_genome: \n"), paste0(sub_seqs_names, collapse = "\n")) 
+
   write_file(log,  paste0(argv$output, "/",  x, "_logfile.txt"))
 
 }
 
 
-dat <- mclapply(pango_list, pseudo_gen)
+dat <- mclapply(pango_list, pseudo_gen, mc.cores = as.numeric(argv$mc))
 
 
 
