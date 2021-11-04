@@ -2,6 +2,7 @@
 suppressMessages(library(tidyverse))
 suppressMessages(library(Biostrings))
 suppressMessages(library(argparser))
+suppressMessages(library(msa))
 
 
 p <- arg_parser("pseudo genome Generator") 
