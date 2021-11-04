@@ -58,6 +58,7 @@ pseudo_gen <- function(x){
   names(msa_consen) <- paste0(x, "_pseudo_genome")
   
   if(repair){ 
+    cat("Repairing Genomes ")
     # Aligns the pseudo to the referance
     repair1 <- msaClustalOmega(c(msa_consen, repair_ref), type = "dna")
     repair2 <- BStringSet(repair1)
