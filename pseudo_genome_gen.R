@@ -20,7 +20,6 @@ if(repair){
   repair_ref <- readBStringSet(argv$repair_genome) %>%
     DNAStringSet()
   cat("Reading in Ref Genome")
-  repair_t <- 100
   }
 
 
@@ -61,7 +60,9 @@ pseudo_gen <- function(x){
   if(repair){ 
     cat(paste0("Repairing Genome ", x, "\n"))
     # Aligns the pseudo to the referance
-    repair1 <- msaClustalOmega(c(msa_consen, repair_ref), type = "dna")
+    psuedo_ref <- BStringSet(c(msa_consen, repair_ref))
+
+    repair1 <- msaClustalOmega(psuedo_ref, type = "dna")
     repair2 <- BStringSet(repair1)
     
     # Determins if both seqeucnes agree at each position
@@ -88,27 +89,22 @@ pseudo_gen <- function(x){
     # Returns the repaired genome
     msa_consen_repair <- repair2[[1]] %>% BStringSet()
     names(msa_consen_repair) <- names(repair2)[1]
+    
+    # Writes the repaired Genome
+    writeXStringSet(msa_consen_repair, paste0(argv$output, "/", x, "_pseudo_repaired.fasta"))
                                                                                                                                                                                                               
   }
   
-  # Writes the pseudo Genome as a fasta
-  cat(paste0("Saving files for ", x),"\n")
-  writeXStringSet(msa_consen_repair, paste0(argv$output, "/", x, "_pseudo.fasta"))
-  
+
   # Generates and writes a log file containing all seqs that were used in pseudo Genome generation
   if(repair){
-    cat(paste0("Saving files for ", x),"\n")
-    writeXStringSet(msa_consen_repair, paste0(argv$output, "/", x, "_pseudo_repaired.fasta"))
-    writeXStringSet(msa_consen, paste0(argv$output, "/", x, "_pseudo.fasta"))
-    
     log <- paste(paste0("Seqs used in ", x, "_pseudo_genome: \n"), paste0(sub_seqs_names, collapse = "\n")) %>%
       paste0(., "\n Repaired using ", names(repair_ref))
-  
     }else{
-    cat(paste0("Saving files for ", x),"\n")
-    writeXStringSet(msa_consen, paste0(argv$output, "/", x, "_pseudo.fasta"))
     log <- paste(paste0("Seqs used in ", x, "_pseudo_genome: \n"), paste0(sub_seqs_names, collapse = "\n")) 
-  }
+    }
+  cat(paste0("Saving files for ", x),"\n")
+  writeXStringSet(msa_consen, paste0(argv$output, "/", x, "_pseudo.fasta"))
 
   write_file(log,  paste0(argv$output, "/",  x, "_logfile.txt"))
 
@@ -116,5 +112,3 @@ pseudo_gen <- function(x){
 
 
 dat <- mclapply(pango_list, pseudo_gen, mc.cores = as.numeric(argv$mc))
-
-
