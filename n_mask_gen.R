@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 
-# CRAN packages
+# CRAN packages 
 suppressMessages(library(argparser))
 suppressMessages(library(tidyverse))
 
@@ -18,6 +18,9 @@ p <- add_argument(p, "--output_dir", help="The directory of the output files")
 # Adding an option to include a differant N-mask base
 p <- add_argument(p, "--mask_base", help="The directory for base of the N-mask. Default is ClusterOmega Consensus")
 
+# Adds the ability to mimic the VCF pipeline
+p <- add_argument(p, "--vcf_mimic", help="If bases prior to poly-N tract should be masked. Leave blank for no")
+
 argv <- parse_args(p)
 
 
@@ -25,6 +28,8 @@ seq_cat <- argv$seq
 threshold <- argv$threshold
 output_name <- argv$name_output
 output_dir <- argv$output_dir
+
+vcf <- as.logical(argv$vcf_mimic)
 
 # Generating the output Dirs
 bed_file_name <- paste0(output_dir, "/", output_name, ".bed")
@@ -56,13 +61,22 @@ for(i in 1:ncol(conMat_prop)){
 bed_data <- data.frame(pos_1base = (1:length(max_prop)),
                        pos_0base = (1:length(max_prop))-1,
                        max_prop,
-                       mask =  max_prop < threshold)
+                       mask =  max_prop < threshold,
+                       seq_source = "NA")
+
+# Mimicing the VCF output
+if(vcf){
+  cat("Mimicing .VCF")
+  for(i in 1:nrow(bed_data)){
+    if(i > 1 & bed_data$mask[i] == TRUE & bed_data$mask[i+1] == TRUE){
+      bed_data$mask[i-1] <- TRUE
+      bed_data$seq_source[i-1] <- "VCF"
+      }}}else{cat("Not Mimicing VCF")}
 
 # Determins which sequence each N comes from
 bed_test <- bed_data %>% 
   filter(mask == TRUE) %>%
-  select(-pos_0base) %>% 
-  mutate(seq_source = "NA")
+  select(-pos_0base) 
 
 ## Turns the MSA object into a BString Set for ease of use
 msa_test <- msa_data %>% BStringSet()
@@ -76,21 +90,28 @@ suppressWarnings(
     most_pop_symb <- rownames(for_loop_consen)[for_loop_consen == max(for_loop_consen)]
     
     concen <- paste0("consen(",most_pop_symb,")")
-    res <- data.frame(names = names(for_loop_dat)[for_loop_dat != most_pop_symb],
+    
+    if(bed_test$max_prop[i] == 1){
+      bed_test$seq_source[i] <- paste0(concen, " | VCF")
+    }else{
+      res <- data.frame(names = names(for_loop_dat)[for_loop_dat != most_pop_symb],
                       base = "NA")
+      for(j in 1:nrow(res)){
+        res$base[j] <- for_loop_dat[names(for_loop_dat) == res$names[j]]
+        }
+      text <- res %>% 
+        mutate(txt = paste0(names,"(", base,")")) %>%
+        .$txt %>%
+        unlist(use.names = FALSE) %>%
+        paste0(., collapse = " | ") %>%
+        paste0(concen, " | ", .)
+      
+      bed_test$seq_source[i] <- text}
     
-    for(j in 1:nrow(res)){
-      res$base[j] <- for_loop_dat[names(for_loop_dat) == res$names[j]]
-    }
-    text <- res %>% 
-      mutate(txt = paste0(names,"(", base,")")) %>%
-      .$txt %>%
-      unlist(use.names = FALSE) %>%
-      paste0(., collapse = " | ") %>%
-      paste0(concen, " | ", .)
-    
-    bed_test$seq_source[i] <- text
 })
+
+
+
 
 # Determines if user has provided custom mask base.
 if(is.na(argv$mask_base)){
