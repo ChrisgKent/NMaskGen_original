@@ -94,7 +94,14 @@ pseudo_gen <- function(x){
   writeXStringSet(msa_consen, paste0(argv$output, "/", x, "_pseudo.fasta"))
   
   # Generates and writes a log file containing all seqs that were used in pseudo Genome generation
-  log <- paste(paste0("Seqs used in ", x, "_pseudo_genome: \n"), paste0(sub_seqs_names, collapse = "\n"))
+  if(repair){
+    log <- paste(paste0("Seqs used in ", x, "_pseudo_genome: \n"), paste0(sub_seqs_names, collapse = "\n")) %>%
+      paste0(., "\n Repaired using ", names(repair_ref))
+  }else{
+    log <- paste(paste0("Seqs used in ", x, "_pseudo_genome: \n"), paste0(sub_seqs_names, collapse = "\n")) 
+  }
+  
+  log <- paste(paste0("Seqs used in ", x, "_pseudo_genome: \n"), paste0(sub_seqs_names, collapse = "\n")) 
   write_file(log,  paste0(argv$output, "/",  x, "_logfile.txt"))
 
 }
