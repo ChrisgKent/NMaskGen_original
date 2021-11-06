@@ -19,7 +19,7 @@ p <- add_argument(p, "--output_dir", help="The directory of the output files")
 p <- add_argument(p, "--mask_base", help="The directory for base of the N-mask. Default is ClusterOmega Consensus")
 
 # Adds the ability to mimic the VCF pipeline
-p <- add_argument(p, "--vcf_mimic", help="If bases prior to poly-N tract should be masked. Leave blank for no")
+p <- add_argument(p, "--vcf_mimic", help="Legacy Argument. TRUE/FALSE. default = FALSE", default = FALSE)
 
 argv <- parse_args(p)
 
@@ -120,7 +120,7 @@ if(is.na(argv$mask_base)){
     str_replace_all("\\?", "N") %>%
     str_replace_all("-", "N") %>%
     DNAStringSet()
-  names(consen_seq) <- c("ClustalOmega_consensus")
+  names(consen_seq) <- output_name
   cat(paste0("Saving read in N-Mask base \n"))
 }else{
   # If the mask_base has a directory
@@ -135,7 +135,7 @@ writeXStringSet(consen_seq, consen_file_name, format = "fasta")
 
 # Generates anf writes the bed file, using only the positions that need masking
 bed_file <- bed_test %>% 
-  mutate(chrom = names(consen_seq),
+  mutate(chrom = output_name,
          chromStart = pos_1base-1,
          chromEnd = pos_1base,
          name = seq_source) %>%
