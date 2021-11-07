@@ -98,8 +98,29 @@ pseudo_gen <- function(x){
 
   # Generates and writes a log file containing all seqs that were used in pseudo Genome generation
   if(repair){
+    left_msa_text <- repair1 %>% 
+      BStringSet() %>% 
+      Biostrings::subseq(start =1, end = f_2+5) %>% 
+      as.character() 
+    
+    right_msa_text <- repair1 %>% 
+      BStringSet() %>% 
+      Biostrings::subseq(start = (l_2+1)-5, end = length(repair2[[1]])) %>% 
+      as.character() 
+    
     log <- paste(paste0("Seqs used in ", x, "_pseudo_genome: \n"), paste0(sub_seqs_names, collapse = "\n")) %>%
-      paste0(., "\n Repaired using ", names(repair_ref))
+      paste0(., "\n\nRepaired using ", names(repair_ref),
+             "\n\nREPAIR: \nA 5 base overlap is shown which was not repaired \n\nLeft pseudo: \n ",
+             left_msa_text[1], "\n",
+             "Left ref genome: \n",
+             left_msa_text[2],
+             "\n\n",
+             "Right pseudo: \n",
+             right_msa_text[1], "\n",
+             "Right ref genome: \n",
+             right_msa_text[2])
+    
+    
     }else{
     log <- paste(paste0("Seqs used in ", x, "_pseudo_genome: \n"), paste0(sub_seqs_names, collapse = "\n")) 
     }
@@ -109,6 +130,5 @@ pseudo_gen <- function(x){
   write_file(log,  paste0(argv$output, "/",  x, "_logfile.txt"))
 
 }
-
 
 dat <- mclapply(pango_list, pseudo_gen, mc.cores = as.numeric(argv$mc))
