@@ -12,14 +12,14 @@ suppressMessages(library(Biostrings))
 p <- arg_parser("N Mask Generator") 
 # Adding flags
 p <- add_argument(p, "--seq", help="Directory of input file containing fasta seq/s")
-p <- add_argument(p, "--threshold", help="The cut off proportion of the most common base in each position")
+p <- add_argument(p, "--threshold", help="The cut off proportion of the most common base in each position", default = 1)
 p <- add_argument(p, "--name_output", help="The prefix of the output files")
 p <- add_argument(p, "--output_dir", help="The directory of the output files")
 # Adding an option to include a differant N-mask base
-p <- add_argument(p, "--mask_base", help="The directory for base of the N-mask. Default is ClusterOmega Consensus")
+p <- add_argument(p, "--mask_base", help="The directory for base of the N-mask or to use the Consensus", default =  "ClusterOmegaConsensus")
 
 # Adds the ability to mimic the VCF pipeline
-p <- add_argument(p, "--vcf_mimic", help="Legacy Argument. TRUE/FALSE. default = FALSE", default = FALSE)
+p <- add_argument(p, "--vcf_mimic", help="Legacy Argument. TRUE/FALSE", default = FALSE)
 
 argv <- parse_args(p)
 
@@ -68,10 +68,13 @@ bed_data <- data.frame(pos_1base = (1:length(max_prop)),
 if(vcf){
   cat("Mimicing .VCF")
   for(i in 1:nrow(bed_data)){
+    ## If postion i and i+1 are both Ns. Then Postiotn i-1 is replaced by an N
     if(i > 1 & bed_data$mask[i] == TRUE & bed_data$mask[i+1] == TRUE){
       bed_data$mask[i-1] <- TRUE
       bed_data$seq_source[i-1] <- "VCF"
-      }}}else{cat("Not Mimicing VCF")}
+    }}}else{cat("Not Mimicing VCF")}
+
+
 
 # Determins which sequence each N comes from
 bed_test <- bed_data %>% 
@@ -85,26 +88,46 @@ msa_test <- msa_data %>% BStringSet()
 ## Any sequence that does not the most common base at the position is collapsed into a single string and added to the seq_source
 suppressWarnings(
   for(i in 1:nrow(bed_test)){
+    # Subset the MSA data, to a position in which all bases are not the same
     for_loop_dat <- Biostrings::subseq(msa_test, start =  bed_test$pos_1base[i], width = 1)
+    # Determins the number of times each base is in the subset
     for_loop_consen <- consensusMatrix(for_loop_dat)
+    # Finds which base apears most freq in the subsection
     most_pop_symb <- rownames(for_loop_consen)[for_loop_consen == max(for_loop_consen)]
     
+    # If more than one base has the largest percentage, a vector will be returned. 
+    # This makes errors later on. So all values are collapsed into a single string
+    if(length(most_pop_symb) > 1){
+      most_pop_symb <- paste0(most_pop_symb, collapse = "/")
+    }
+    
+    # Generates a string for reporting the consensus value 
     concen <- paste0("consen(",most_pop_symb,")")
     
     if(bed_test$max_prop[i] == 1){
+      # If there is no variation in the bases, it must be due to positions masked from the VCF mimic
       bed_test$seq_source[i] <- paste0(concen, " | VCF")
     }else{
       res <- data.frame(names = names(for_loop_dat)[for_loop_dat != most_pop_symb],
                       base = "NA")
-      for(j in 1:nrow(res)){
+      # Determins the base located in each sequence and generates a string contaning the seq name and the base
+      for(j in 1:nrow(res)){ 
         res$base[j] <- for_loop_dat[names(for_loop_dat) == res$names[j]]
-        }
+      }
+      
       text <- res %>% 
         mutate(txt = paste0(names,"(", base,")")) %>%
         .$txt %>%
         unlist(use.names = FALSE) %>%
-        paste0(., collapse = " | ") %>%
-        paste0(concen, " | ", .)
+        paste0(., collapse = " | ") 
+      
+      # If there are two bases which are equally prevelant (such as only two consensus seqs). The consen isn't provided
+      if(length(most_pop_symb) > 1){
+        text_out <- paste0(text)
+      }else{
+        text_out <- paste0(concen, " | ", text)
+      }
+        
       
       bed_test$seq_source[i] <- text}
     
@@ -114,18 +137,18 @@ suppressWarnings(
 
 
 # Determines if user has provided custom mask base.
-if(is.na(argv$mask_base)){
+if(argv$mask_base == "ClusterOmegaConsensus"){
   # If the mask_base if left empty
   consen_seq <- msa::msaConsensusSequence(msa_data) %>%
     str_replace_all("\\?", "N") %>%
     str_replace_all("-", "N") %>%
     DNAStringSet()
   names(consen_seq) <- output_name
-  cat(paste0("Saving read in N-Mask base \n"))
+  cat(paste0("Saving consensus for N-Mask base \n"))
 }else{
   # If the mask_base has a directory
   consen_seq <- readDNAStringSet(argv$mask_base)
-  cat(paste0("Saving consensus N-Mask base \n"))
+  cat(paste0("Reading in N-Mask base \n"))
 }
 
 cat(paste0("Saving N-Mask base \n"))
