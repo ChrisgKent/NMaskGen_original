@@ -9,7 +9,7 @@ p <- arg_parser("pseudo genome Generator")
 # Adding flags
 p <- add_argument(p, "--input", help="input directory")
 p <- add_argument(p, "--output", help="output directory")
-p <- add_argument(p, "--repair", help="Use a set genome to repair 5' and 3' regions (TRUE/FALSE)")
+p <- add_argument(p, "--repair", help="Use a ref genome to repair 5' and 3' regions (TRUE/FALSE)")
 p <- add_argument(p, "--repair_genome", help= "The dir of the ref genome")
 p <- add_argument(p, "--mc", help= "Number of Cores")
 
@@ -62,7 +62,6 @@ pseudo_gen <- function(x){
     cat(paste0("Repairing Genome ", x, "\n"))
     # Aligns the pseudo to the referance
     psuedo_ref <- BStringSet(c(msa_consen, repair_ref))
-
     repair1 <- msaClustalOmega(psuedo_ref, type = "dna")
     repair2 <- BStringSet(repair1)
     
@@ -88,7 +87,7 @@ pseudo_gen <- function(x){
     repair2[[1]][(l_2+1):length(repair2[[1]])] <- repair2[[2]] %>% Biostrings::subseq(start = (l_2+1), end = length(repair2[[1]]))
     cat(paste0("Returning Repaired ", x, "\n"))
     # Returns the repaired genome
-    msa_consen_repair <- repair2[[1]] %>% BStringSet()
+    msa_consen_repair <- repair2[[1]] %>% str_remove_all("-") %>% BStringSet()
     names(msa_consen_repair) <- names(repair2)[1]
     
     # Writes the repaired Genome
