@@ -134,8 +134,6 @@ suppressWarnings(
 })
 
 
-
-
 # Determines if user has provided custom mask base.
 if(argv$mask_base == "ClusterOmegaConsensus"){
   # If the mask_base if left empty
