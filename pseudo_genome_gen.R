@@ -20,7 +20,7 @@ repair <- as.logical(argv$repair)
 if(repair){
   repair_ref <- readBStringSet(argv$repair_genome) %>%
     DNAStringSet()
-  cat("Reading in Ref Genome")
+  cat("Reading in Ref Genome \n")
   }
 
 
@@ -58,7 +58,7 @@ pseudo_gen <- function(x){
     BStringSet()
   names(msa_consen) <- paste0(x, "_pseudo_genome")
   
-  if(repair){ 
+  if(repair){
     cat(paste0("Repairing Genome ", x, "\n"))
     # Aligns the pseudo to the referance
     psuedo_ref <- BStringSet(c(msa_consen, repair_ref))
@@ -85,7 +85,6 @@ pseudo_gen <- function(x){
     repair2[[1]][1:f_2-1] <- repair2[[2]] %>% Biostrings::subseq(start = 1, end = f_2-1)
     # Repairs the end 
     repair2[[1]][(l_2+1):length(repair2[[1]])] <- repair2[[2]] %>% Biostrings::subseq(start = (l_2+1), end = length(repair2[[1]]))
-    cat(paste0("Returning Repaired ", x, "\n"))
     # Returns the repaired genome
     msa_consen_repair <- repair2[[1]] %>% str_remove_all("-") %>% BStringSet()
     names(msa_consen_repair) <- names(repair2)[1]
@@ -123,10 +122,10 @@ pseudo_gen <- function(x){
     
     }else{
     log <- paste(paste0("Seqs used in ", x, "_pseudo_genome: \n"), paste0(sub_seqs_names, collapse = "\n")) 
+    writeXStringSet(msa_consen, paste0(argv$output, "/", x, "_pseudo.fasta"))
     }
+  
   cat(paste0("Saving files for ", x),"\n")
-  writeXStringSet(msa_consen, paste0(argv$output, "/", x, "_pseudo.fasta"))
-
   write_file(log,  paste0(argv$output, "/",  x, "_logfile.txt"))
 
 }
