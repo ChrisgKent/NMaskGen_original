@@ -151,8 +151,7 @@ if(argv$mask_base == "ClusterOmegaConsensus"){
 
 cat(paste0("Saving N-Mask base \n"))
 
-# Writes the mask base file
-writeXStringSet(consen_seq, consen_file_name, format = "fasta")
+
 
 # Generates anf writes the bed file, using only the positions that need masking
 bed_file <- bed_test %>% 
@@ -164,15 +163,29 @@ bed_file <- bed_test %>%
 
 cat(paste0("Saving .bed file \n"))
 
+# Writes the bed file
 write_delim(bed_file, 
             delim = "\t", 
             file = bed_file_name,
             col_names = FALSE)
 
+# Determins what file to write
+## If there are two input seqs the consen seq is equal to the bedtools maskfasta. Hence bedtools doesn't need to be called   
+if(length(data) == 2){
+  writeXStringSet(consen_seq, n_mask_file_name, format = "fasta")
+}else{
+  # Writes the base mask
+  writeXStringSet(consen_seq, consen_file_name, format = "fasta")
+  cat("Calling bedtools maskfasta \n")
+  # Calls bedtools to generate the N masked file
+  system(paste0("bedtools maskfasta -fi ", consen_file_name, " -bed ", bed_file_name, " -fo ",  n_mask_file_name))
+  cat(paste0("Saving N-masked .fasta \n"))
+}
 
-# Calls bedtools to generate the N masked file
-system(paste0("bedtools maskfasta -fi ", consen_file_name, " -bed ", bed_file_name, " -fo ",  n_mask_file_name))
-cat(paste0("Saving N-masked .fasta \n"))
+
+
+
+
 
 
 
