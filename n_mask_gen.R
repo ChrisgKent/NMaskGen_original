@@ -66,13 +66,13 @@ bed_data <- data.frame(pos_1base = (1:length(max_prop)),
 
 # Mimicing the VCF output
 if(vcf){
-  cat("Mimicing .VCF")
+  cat("Mimicing .VCF \n")
   for(i in 1:nrow(bed_data)){
     ## If postion i and i+1 are both Ns. Then Postiotn i-1 is replaced by an N
     if(i > 1 & bed_data$mask[i] == TRUE & bed_data$mask[i+1] == TRUE){
       bed_data$mask[i-1] <- TRUE
       bed_data$seq_source[i-1] <- "VCF"
-    }}}else{cat("Not Mimicing VCF")}
+    }}}else{cat("Not Mimicing VCF \n")}
 
 
 
@@ -104,7 +104,7 @@ suppressWarnings(
     # Generates a string for reporting the consensus value 
     concen <- paste0("consen(",most_pop_symb,")")
     
-    if(bed_test$max_prop[i] == 1){
+    if(bed_test$max_prop[i] == 1 & vcf){
       # If there is no variation in the bases, it must be due to positions masked from the VCF mimic
       bed_test$seq_source[i] <- paste0(concen, " | VCF")
     }else{
@@ -129,7 +129,7 @@ suppressWarnings(
       }
         
       
-      bed_test$seq_source[i] <- text}
+      bed_test$seq_source[i] <- text_out}
     
 })
 
