@@ -11,10 +11,12 @@ p <- add_argument(p, "--input", help="input directory")
 p <- add_argument(p, "--output", help="output directory")
 p <- add_argument(p, "--repair", help="Use a ref genome to repair 5' and 3' regions (TRUE/FALSE)")
 p <- add_argument(p, "--repair_genome", help= "The dir of the ref genome")
-p <- add_argument(p, "--mc", help= "Number of Cores")
+p <- add_argument(p, "--mc", help= "Number of Cores", default = 2)
+p <- add_argument(p, "--bed", help= "Should a .bed file written (requires --repair = TRUE)", default = FALSE)
 
 argv <- parse_args(p)
 
+bed <- as.logical(argv$bed)
 # If the repair argument is TRUE reads in the referance genome wanted 
 repair <- as.logical(argv$repair)
 if(repair){
@@ -53,8 +55,8 @@ pseudo_gen <- function(x){
   
   # Uses the consensus Sequence as the pseudo Genome
   msa_consen <- msa::msaConsensusSequence(msa_seqs) %>% 
-    str_replace_all("\\?", "N") %>%
-    str_replace_all("-", "N") %>%
+    str_replace_all("\\?", "N") %>% # If there are two bases with equal freq "?" will be returned. This is turned into an N
+    str_remove_all("-") %>% # If one seq has an insert a "--" will be inserted. If the insert was in more samples the bases would be returned.
     BStringSet()
   names(msa_consen) <- paste0(x, "_pseudo_genome")
   
@@ -93,6 +95,27 @@ pseudo_gen <- function(x){
     writeXStringSet(msa_consen_repair, paste0(argv$output, "/", x, "_pseudo_repaired.fasta"))
                                                                                                                                                                                                               
   }
+  
+  if(bed){
+    bed_consen <- consensusMatrix(repair2)
+    
+    max_prop <- numeric()
+    for(L in 1:ncol(bed_consen)){
+      max_prop[L] <- max(bed_consen[,L])
+    }
+    
+    data.frame(pos_1base = 1:length(repair2[[1]]),
+                          dif = max_prop !=2) %>% 
+      filter(dif == TRUE) %>%
+      mutate(chrom = names(repair_ref),
+             chromStart = pos_1base-1,
+             chromEnd = pos_1base) %>% 
+      select(chrom,chromStart,chromEnd) %>%
+      write_delim(., 
+                  delim = "\t", 
+                  file = paste0(argv$output, "/", x, "_pseudo_genome.bed"),
+                  col_names = FALSE)
+    }
   
 
   # Generates and writes a log file containing all seqs that were used in pseudo Genome generation
