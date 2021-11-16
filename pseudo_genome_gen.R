@@ -5,7 +5,7 @@ suppressMessages(library(argparser))
 suppressMessages(library(msa))
 
 
-p <- arg_parser("pseudo genome Generator") 
+p <- arg_parser("Pseudo Genome Generator") 
 # Adding flags
 p <- add_argument(p, "--input", help="input directory")
 p <- add_argument(p, "--output", help="output directory")
