@@ -106,18 +106,20 @@ pseudo_gen <- function(x){
     }
     repair_dat <- data.frame(pos= 1:ncol(conMat), concen = conMax)
     
-    # Finds the first site of consensus between ref and pseudo
-    f_2 <- repair_dat[repair_dat$concen == 2,] %>% .[,-2] %>% min()
-    
-    # Finds the last site of consensus between ref and pseudo
-    l_2 <- repair_dat[repair_dat$concen == 2,] %>% .[,-2] %>% max()
-    
-    # Repairs the left end
-    ## By replacing the pseudo genomes sequences with the ref upto the first site of consensus. This should just replace the tails
-    repair2[[1]][1:f_2-1] <- repair2[[2]] %>% Biostrings::subseq(start = 1, end = f_2-1)
-    # Repairs the end 
-    repair2[[1]][(l_2+1):length(repair2[[1]])] <- repair2[[2]] %>% Biostrings::subseq(start = (l_2+1), end = length(repair2[[1]]))
-    
+    if(consensusMatrix(subseq(repair2, start = 1, width = 1))[1,1] != 2){
+      # Finds the first site of consensus between ref and pseudo
+      f_2 <- repair_dat[repair_dat$concen == 2,] %>% .[,-2] %>% min()
+      # Repairs the right end 
+      repair2[[1]][1:f_2-1] <- repair2[[2]] %>% Biostrings::subseq(start = 1, end = f_2-1)
+      }
+
+    if(consensusMatrix(subseq(repair2,end = length(repair2[[2]]), width = 1))[1,1] != 2){
+      # Finds the last site of consensus between ref and pseudo
+      l_2 <- repair_dat[repair_dat$concen == 2,] %>% .[,-2] %>% max()
+      # Repairs the left end 
+      repair2[[1]][(l_2+1):length(repair2[[1]])] <- repair2[[2]] %>% Biostrings::subseq(start = (l_2+1), end = length(repair2[[1]]))
+      }
+  
     # Determing if there are any insertions into the pseudo, relative to the ref
     del <- matchPattern("-", repair2[[1]])
     if(length(del) != 0){# There has been an insertion
