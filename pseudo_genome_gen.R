@@ -10,7 +10,7 @@ p <- arg_parser("pseudo genome Generator")
 p <- add_argument(p, "--input", help="input directory")
 p <- add_argument(p, "--output", help="output directory")
 p <- add_argument(p, "--repair", help="Use a ref genome to repair 5' and 3' regions (TRUE/FALSE)", default = TRUE)
-p <- add_argument(p, "--repair_genome", help= "The dir of the ref genome", default = "~/NMaskGen/UK_scheme_data/Resources/MN908947.3.fasta")
+p <- add_argument(p, "--repair_genome", help= "The dir of the ref genome", default = "resources/MN908947.3.fasta")
 p <- add_argument(p, "--m", help= "Number of Cores (Windows OS has to use 1)", default = 1)
 p <- add_argument(p, "--bed", help= "Should a .bed file written (requires --repair = TRUE)", default = TRUE)
 
@@ -247,7 +247,7 @@ pseudo_gen <- function(x){
       log <- paste0(log, paste0(insrt_txt, collapse = ""))
       
     }else{
-      log <- paste0(log, "\n", "No insertions")
+      log <- paste0(log, "\n\n", "NO INSERTIONS")
     }
     
     # Adding any deletions into the log file 
@@ -276,7 +276,7 @@ pseudo_gen <- function(x){
       
       log <- paste0(log, paste0(del_txt, collapse = ""))
       
-    }else{log <- paste0(log, "\nNo deletions\n")}
+    }else{log <- paste0(log, "\n\nNO DELETIONS")}
     
     #Final Validation of ref genome repair
     log <- paste0(log,paste0("\n\nFinal Validation of repair:\n",repair2[[2]] == repair_ref))
