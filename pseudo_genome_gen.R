@@ -176,25 +176,41 @@ pseudo_gen <- function(x){
                                                                                                                                                                                                               
   }
   
-  if(bed){
+  if(bed){# This section writes a bed file
+    ## that contains the locations and corresponding change between the ref and the pseudo genome 
+    ## Therefore, it can be used to de novo generate the pseudo genomefrom the ref and bed files
     bed_consen <- consensusMatrix(repair2)
-    
     max_prop <- numeric()
     for(L in 1:ncol(bed_consen)){
+      # Finds the most common base at each position
       max_prop[L] <- max(bed_consen[,L])
-    }
+    } 
     
-    data.frame(pos_1base = 1:length(repair2[[1]]),
-                          dif = max_prop !=2) %>% 
+    # Filters for locations with variation between the two genomes 
+    bed_data <- data.frame(pos_1base = 1:length(repair2[[1]]),dif = max_prop !=2) %>% 
       filter(dif == TRUE) %>%
       mutate(chrom = names(repair_ref),
              chromStart = pos_1base-1,
              chromEnd = pos_1base) %>% 
-      select(chrom,chromStart,chromEnd) %>%
-      write_delim(., 
-                  delim = "\t", 
-                  file = paste0(argv$output, "/", x, "_pseudo_genome.bed"),
-                  col_names = FALSE)
+      select(chrom,chromStart,chromEnd)
+    
+    # For each location with variation, the ref base and pseudo base are found 
+    bed_names <- character()
+    for(i in 1:nrow(bed_data)){
+      for_dat <- Biostrings::subseq(repair2, start = bed_data$chromStart[i]+1, width = 1)
+      ref <- for_dat[[2]] %>% as.character()
+      psuedo <- for_dat[[1]] %>% as.character()
+      
+      # The two bases are parsed into a string
+      bed_names[i] <- paste0(ref, "to", psuedo)
+    }
+    
+    # bedfile is written
+    bed_data <- mutate(bed_data,name = bed_names)
+    write_delim(bed_data, 
+                delim = "\t", 
+                file = paste0(argv$output, "/", x, "_pseudo_genome.bed"),
+                col_names = FALSE)
     }
   
   # Generates and writes a log file containing all seqs that were used in pseudo Genome generation
