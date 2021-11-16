@@ -295,6 +295,6 @@ pseudo_gen <- function(x){
 if(argv$m == 1){
   dat <- lapply(pango_list, pseudo_gen)
 }else{
-  dat <- mclapply(pango_list, pseudo_gen, mc.cores = as.numeric(argv$mc))
+  dat <- mclapply(pango_list, pseudo_gen, mc.cores = as.numeric(argv$m))
 }
 
