@@ -35,12 +35,9 @@ files <- list.files(argv$input) %>%
 pango_list <- split(files, seq(length(files)))
 
 # Checks if the output dir already exists, if not it generates it and a tmp directory 
-if(dir.exists(argv$output)){# If the dir exists
-  if(!dir.exists(paste0(argv$output, "/tmp"))){dir.create(paste0(argv$output, "/tmp"))}
-}else{# if it doesn't exists
+if(!dir.exists(argv$output)){# If the dir doesn't exist
   cat(paste0("Creating output directory: ", argv$output), "\n")
   dir.create(argv$output)
-  dir.create(paste0(argv$output, "/tmp"))
 }
 
 pseudo_gen <- function(x){
@@ -87,7 +84,7 @@ pseudo_gen <- function(x){
     str_replace_all("\\?", "N") %>% # If there are two bases with equal freq "?" will be returned. This is turned into an N
     str_remove_all("-") %>% # If one seq has an insert a "--" will be inserted. If the insert was in more samples the bases would be returned.
     BStringSet()
-  names(msa_consen) <- paste0(x, "_pseudo_genome")
+  names(msa_consen) <- paste0(x, "_pseudoref")
   
   if(repair){
     cat(paste0("Repairing Genome ", x, "\n"))
@@ -174,7 +171,7 @@ pseudo_gen <- function(x){
     names(msa_consen_repair) <- names(repair2)[1]
     
     # Writes the repaired Genome
-    writeXStringSet(msa_consen_repair, paste0(argv$output, "/", x, "_pseudo_repaired.fasta"))
+    writeXStringSet(msa_consen_repair, paste0(argv$output, "/", x, "_pseudoref.fasta"))
                                                                                                                                                                                                               
   }
   
@@ -211,7 +208,7 @@ pseudo_gen <- function(x){
     bed_data <- mutate(bed_data,name = bed_names)
     write_delim(bed_data, 
                 delim = "\t", 
-                file = paste0(argv$output, "/", x, "_pseudo_genome.bed"),
+                file = paste0(argv$output, "/", x, "_pseudoref.bed"),
                 col_names = FALSE)
     }
   
@@ -225,7 +222,7 @@ pseudo_gen <- function(x){
       Biostrings::subseq(start = (l_2+1)-5, end = length(repair2[[1]])) %>% 
       as.character() 
     
-    log <- paste(paste0("Seqs used in ", x, "_pseudo_genome:\n"), paste0(sub_seqs_names, collapse = "\n")) %>%
+    log <- paste(paste0("Seqs used in ", x, "_pseudoref:\n"), paste0(sub_seqs_names, collapse = "\n")) %>%
       paste0("\n",., "\n\nRepaired using ", names(repair_ref),
              "\n\nREPAIR: \nA 5 base overlap is shown which was not repaired \n\nLeft pseudo: \n ",
              left_msa_text[1], "\n",
@@ -300,7 +297,7 @@ pseudo_gen <- function(x){
     log <- paste0(log,paste0("\n\nFinal Validation of repair:\n",repair2[[2]] == repair_ref))
     
     }else{
-    log <- paste(paste0("Seqs used in ", x, "_pseudo_genome: \n"), paste0(sub_seqs_names, collapse = "\n")) 
+    log <- paste(paste0("Seqs used in ", x, "_pseudoref: \n"), paste0(sub_seqs_names, collapse = "\n")) 
     writeXStringSet(msa_consen, paste0(argv$output, "/", x, "_pseudo.fasta"))
     }
   
@@ -315,4 +312,5 @@ if(argv$m == 1){
 }else{
   dat <- mclapply(pango_list, pseudo_gen, mc.cores = as.numeric(argv$m))
 }
+
 
