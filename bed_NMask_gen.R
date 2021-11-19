@@ -9,10 +9,14 @@ suppressMessages(library(argparser))
 p <- arg_parser("De novo pseudo genome generator") 
 # Adding flags
 p <- add_argument(p, "--ref", help="Directory of the reference genome",  default = "resources/MN908947.3.fasta")
-p <- add_argument(p, "--bed", help= "Directory that contains the .bed files")
+p <- add_argument(p, "--bed", help= "Directory that contains the .bed files", )
+p <- add_argument(p, "--second_bed", help= "Directory of a second .bed file", default = "NA")
+
+p <- add_argument(p, "--prefix_bed1", help= "Prefix added to all columns in the full.bed file", default = "NA")
+p <- add_argument(p, "--prefix_bed2", help= "Prefix added to all columns in the full.bed file. \n These arguments are only needed if files in bed1 and bed2 have the same name", default = "NA")
+
 p <- add_argument(p, "--output", help= "Directory that output files are written", default = "NMask")
 p <- add_argument(p, "--name", help= "Output file prefix", default = "NMask")
-
 
 argv <- parse_args(p)
 
@@ -24,39 +28,89 @@ if(!dir.exists(argv$output)){# If the dir does not exist
 
 # Reads the ref
 ref <- readDNAStringSet(argv$ref)
+
 # Reads the bed 
+files <- list.files(argv$bed, pattern = ".bed") # Detects all files with .bed in the name
+bed_list <- data.frame(names = str_remove(files, ".bed"),files) 
 
-files <- list.files(argv$bed, pattern = ".bed")
-
-bed_list <- data.frame(names = str_remove(files, ".bed"),files)
-
-bed_files <- list()
+bed_files <- list() # Reads each file in
 for(i in 1:length(files)){
+  # Reads the file 
   dat <- read_delim(paste0(argv$bed,"/", bed_list$files[i]), col_names = FALSE, show_col_types = FALSE)
-  names(dat) <- c("chrom", "chromStart", "ChromEnd", "Name")
-  dat <- mutate(dat, ref = str_remove_all(Name, "to[A-Z]"),
-           alt = str_remove_all(Name, "[A-Z]to")) %>% 
-    select(-Name)
-  
+  # Adds colnames
+  names(dat) <- c("chrom", "chromStart", "chromEnd", "name")
+  # Parses the data to generate the base change
+  dat <- mutate(dat, ref = str_remove_all(name, "to[A-Z]"),
+           alt = str_remove_all(name, "[A-Z]to")) %>% 
+    select(-name)
+  # Saves the readfile into the global Enviroment 
   bed_files[[i]] <- dat
-  names(bed_files)[i] <- bed_list$names[i]
+  
+  # If a prefix is given it's added to the file name 
+  if(argv$prefix_bed1 == "NA"){
+    names(bed_files)[i] <- bed_list$names[i]
+  }else{
+    names(bed_files)[i] <- paste0(argv$prefix_bed1, "_", bed_list$names[i])
+    }
+ 
+}
+cat(paste0(length(files), " .bed files read in for bed1 \n"))
+
+
+# If a second bed file is given
+if(argv$second_bed != "NA"){
+  # Finds all .bed files in the given dir
+  files2 <- list.files(argv$second_bed, pattern = ".bed")
+  bed_list2 <- data.frame(names = str_remove(files2, ".bed"),files2)
+  for(i in 1:length(files2)){
+    # Reads the bed files in 
+    dat <- read_delim(paste0(argv$second_bed,"/", bed_list2$files[i]), col_names = FALSE, show_col_types = FALSE)
+    names(dat) <- c("chrom", "chromStart", "chromEnd", "name")
+    # Parses the .bed file
+    dat <- mutate(dat, ref = str_remove_all(name, "to[A-Z]"),
+                  alt = str_remove_all(name, "[A-Z]to")) %>% 
+      select(-name)
+    
+    bed_files[[length(files)+i]] <- dat
+    if(argv$prefix_bed2 == "NA"){
+      names(bed_files)[length(files)+i] <- bed_list2$names[i]
+    }else{
+      names(bed_files)[length(files)+i] <- paste0(argv$prefix_bed2,"_", bed_list2$names[i])
+    }
+  }
+  cat(paste0(length(files2), " .bed files read in for bed2 \n"))
+}
+
+# Added a warning if more than one file has the same name
+if(length(unique(names(bed_files))) != length(names(bed_files))){
+  stop("The same filename has been found in bed1 and bed2\nPlease rerun with something in one, or both of the --prefix_bed1 or --prefix_bed2 arguments")
 }
 
 for(i in 1:length(bed_files)){
   if(i==1){
     dat_df <- data.frame(bed_files[[1]])
-    names(dat_df)[names(dat_df)=="alt"] <- bed_list$names[i]
+    names(dat_df)[names(dat_df)=="alt"] <- names(bed_files)[i]
   }else{
-    dat_df <- full_join(dat_df, bed_files[[i]], by = c("chrom","chromStart","ChromEnd", "ref"))
-    names(dat_df)[names(dat_df)=="alt"] <- bed_list$names[i]
+    dat_df <- full_join(dat_df, bed_files[[i]], by = c("chrom","chromStart","chromEnd", "ref"))
+    names(dat_df)[names(dat_df)=="alt"] <- names(bed_files)[i]
   }
 }
 
-write_delim(dat_df, paste0(argv$output, "/", argv$name, "_full.bed"), delim = "\t")
-dat_df2 <-dat_df %>% select(chrom, chromStart, ChromEnd)
-write_delim(dat_df2, paste0(argv$output, "/", argv$name, "_compact.bed"), delim = "\t", col_names = FALSE)
+dat_df <- arrange(dat_df, chromStart)
+# Writes a file that contains the base change provided by each pseudoref
+write_delim(dat_df, paste0(argv$output, "/", argv$name, "_log"), delim = "\t")
+
+# Writes a .bed file 
+dat_df2 <-dat_df %>% select(chrom, chromStart, chromEnd)
+write_delim(dat_df2, paste0(argv$output, "/", argv$name, ".bed"), delim = "\t", col_names = FALSE)
+
+system(paste0("bedtools maskfasta -fi ", argv$ref, " -bed ", paste0(argv$output, "/", argv$name, ".bed"),  " -fo ", argv$output,"/",argv$name, "_NMasked.fasta"))
+
+tmp <- readDNAStringSet(paste0(argv$output,"/",argv$name, "_NMasked.fasta"))
+names(tmp) <- paste0(argv$name, "_NMasked")
+writeXStringSet(tmp, paste0(argv$output,"/",argv$name, "_NMasked.fasta"))
 
 
-system(paste0("bedtools maskfasta -fi ", argv$ref, " -bed ", paste0(argv$output, "/", argv$name, "_compact.bed"),  " -fo ", argv$output,"/",argv$name, ".fasta"))
-cat(paste0("Complete \n"))
+
+cat(paste0("Compelete \n"))
 
