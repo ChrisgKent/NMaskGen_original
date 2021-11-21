@@ -38,6 +38,11 @@ pango_list <- split(files, seq(length(files)))
 if(!dir.exists(argv$output)){# If the dir doesn't exist
   cat(paste0("Creating output directory: ", argv$output), "\n")
   dir.create(argv$output)
+  dir.create(paste0(argv$output, "/tmp"))
+}else{
+  if(!dir.exists(paste0(argv$output, "/tmp"))){
+    dir.create(paste0(argv$output, "/tmp"))
+  }
 }
 
 pseudo_gen <- function(x){
@@ -78,13 +83,24 @@ pseudo_gen <- function(x){
   cat(paste0("Running ClustalOmega on ", x), "\n")
   msa_seqs <- msa::msaClustalOmega(sub_seq_set, type = "dna")
   
-  rm(sub_seq_set)
+  writeXStringSet(BStringSet(msa_seqs), paste0(argv$output, "/tmp/", x, "_msa.fasta"))
+  
   # Uses the consensus Sequence to create an unanchored pseudo Genome
   msa_consen <- msa::msaConsensusSequence(msa_seqs) %>% 
     str_replace_all("\\?", "N") %>% # If there are two bases with equal freq "?" will be returned. This is turned into an N
     str_remove_all("-") %>% # If one seq has an insert a "--" will be inserted. If the insert was in more samples the bases would be returned.
     BStringSet()
   names(msa_consen) <- paste0(x, "_pseudoref")
+  
+  # Checks for non standard bases
+  base_check <- Biostrings::letterFrequency(sub_seq_set, DNA_ALPHABET) %>% .[,-c(1:4)]
+  base_check <- rbind(base_check, Biostrings::letterFrequency(msa_consen, DNA_ALPHABET) %>% .[,-c(1:4)]) %>% as.data.frame()
+  base_check <- cbind(names = c(sub_seqs_names, "consen"), base_check) %>% as.data.frame()
+  write_csv(base_check, paste0(argv$output, "/tmp/", x, "_basecheck.csv"))
+  
+  if(sum(base_check[base_check$names == "consen",-1]) != 0){
+    cat(paste0("Non [ACGT] bases found in ", x, " consensus sequence"))
+  }
   
   if(repair){
     cat(paste0("Repairing Genome ", x, "\n"))
@@ -295,6 +311,10 @@ pseudo_gen <- function(x){
     
     #Final Validation of ref genome repair
     log <- paste0(log,paste0("\n\nFinal Validation of repair:\n",repair2[[2]] == repair_ref))
+    
+    if(sum(base_check[base_check$names == "consen",-1]) != 0){
+      log <- paste0(log, "\n\nNon [ACGT] bases found in ", x, " consensus sequence\n\n")
+    }
     
     }else{
     log <- paste(paste0("Seqs used in ", x, "_pseudoref: \n"), paste0(sub_seqs_names, collapse = "\n")) 
