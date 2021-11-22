@@ -1,3 +1,11 @@
+# CURRENTLY UNDER ACTIVE DEVELOPMENT
+## This README is not up to date. 
+
+The scripts work although are unpolished, and not assembled. 
+If you have an intrest in using this software, please reach out.
+
+
+
 # NMaskGen
 Generates a .fasta, were any base position with sequence variability is masked via an N
 
