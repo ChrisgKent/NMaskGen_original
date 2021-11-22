@@ -2,7 +2,7 @@
 ## This README is not up to date. 
 
 The scripts work although are unpolished, and not assembled. 
-If you have an intrest in using this software, please reach out.
+If you have an intrest in using this software before the final build, reach out and I'll be happy to help.
 cxk853@student.bham.ac.uk
 
 
