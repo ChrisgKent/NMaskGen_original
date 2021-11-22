@@ -3,7 +3,7 @@
 
 The scripts work although are unpolished, and not assembled. 
 If you have an intrest in using this software, please reach out.
-
+cxk853@student.bham.ac.uk
 
 
 # NMaskGen
