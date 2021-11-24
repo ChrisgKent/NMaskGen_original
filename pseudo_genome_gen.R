@@ -5,7 +5,7 @@ suppressMessages(library(argparser))
 suppressMessages(library(msa))
 
 
-p <- arg_parser("Pseudo Genome Generator") 
+p <- arg_parser("Pseudo Genome Generator",hide.opts = TRUE) 
 # Adding flags
 p <- add_argument(p, "--input", help="input directory")
 p <- add_argument(p, "--output", help="output directory")
@@ -46,27 +46,6 @@ if(!dir.exists(argv$output)){# If the dir doesn't exist
 }
 
 pseudo_gen <- function(x){
-  #Functions 
-  continuous_func <- function(x){
-    group <- 1
-    # Determins if its a continuous insertion, groups continuous ones
-    for(i in 1:nrow(x)){
-      if(i == 1){x$group[i] <- group
-      }else if(x$start[i] - x$start[i-1] == 1){x$group[i] <- group
-      }else{group <- group +1
-      x$group[i] <- group}
-    }
-    x
-  }
-  indel_func <- function(x,y = 4){
-    indel <- character()
-    for(i in unique(x$group)){
-      for_dat <- filter(x, group == i)
-      indel[i] <- Biostrings::subseq(repair2[[1]], start = min(for_dat$start)-y, end = max(for_dat$start)+y) %>% as.character()
-    }
-    indel
-  }
-  
   # Finds all seqs for each PANGO and ensures there's more than one.
   sub_seqs_files <- list.files(paste0(argv$input,"/", x))
   if(length(sub_seqs_files) <= 1){stop(paste0("Not enough Sequences detected", x))}
@@ -103,92 +82,20 @@ pseudo_gen <- function(x){
   }
   
   if(repair){
-    cat(paste0("Repairing Genome ", x, "\n"))
-    # Aligns the pseudo to the referance
-    psuedo_ref <- BStringSet(c(msa_consen, repair_ref))
-    repair1 <- msaClustalOmega(psuedo_ref, type = "dna")
-    repair2 <- BStringSet(repair1)
-    unrepaired <- repair2
+    source("repair.R")
+    repair2 <- repair_func(seq = msa_consen, 
+                           ref = repair_ref, 
+                           name = x, 
+                           log = TRUE, 
+                           log_dir = argv$output, 
+                           sub_seqs_names = sub_seqs_names,
+                           base_check = base_check)
     
-    # Determins if both sequences agree at each position
-    conMat <- consensusMatrix(repair1)
-    conMat <- conMat[rowSums(conMat) !=0,]
-    conMax <- integer()
-    for(i in 1:ncol(conMat)){
-      conMax[i] <- max(conMat[,i])
-    }
-    repair_dat <- data.frame(pos= 1:ncol(conMat), concen = conMax)
-    
-    if(consensusMatrix(subseq(repair2, start = 1, width = 1))[1,1] != 2){
-      # Finds the first site of consensus between ref and pseudo
-      f_2 <- repair_dat[repair_dat$concen == 2,] %>% .[,-2] %>% min()
-      # Repairs the right end 
-      repair2[[1]][1:f_2-1] <- repair2[[2]] %>% Biostrings::subseq(start = 1, end = f_2-1)
-      }
-
-    if(consensusMatrix(subseq(repair2,end = length(repair2[[2]]), width = 1))[1,1] != 2){
-      # Finds the last site of consensus between ref and pseudo
-      l_2 <- repair_dat[repair_dat$concen == 2,] %>% .[,-2] %>% max()
-      # Repairs the left end 
-      repair2[[1]][(l_2+1):length(repair2[[1]])] <- repair2[[2]] %>% Biostrings::subseq(start = (l_2+1), end = length(repair2[[1]]))
-      }
-  
-    # Determing if there are any insertions into the pseudo, relative to the ref
-    del <- matchPattern("-", repair2[[1]])
-    if(length(del) != 0){# There has been an insertion
-      cat(paste0("Deletion detected: ", x, "\n"))
-      del_df <- as.data.frame(del@ranges) %>% mutate(group = 0)
-      del_df <- continuous_func(del_df)
-      
-      # Saves the bases prior to repair, for use in log file
-      delseq <- indel_func(del_df)
-      
-      # Repairs the deletions by masking all "-" with "N" with in the psudeo genome
-      repair2[[1]] <- repair2[[1]] %>% str_replace_all("-", "N")
-      
-      # Saves the bases post repair, for use in log file
-      repdelseq <- indel_func(del_df)
-    }
-    
-    insert <- matchPattern("-", repair2[[2]])
-    if(length(insert) != 0){# There has been an insertion
-      cat(paste0("Insertion detected: ", x, "\n"))
-      insert_df <- as.data.frame(insert@ranges) %>% mutate(group = 0)
-      insert_df <- continuous_func(insert_df)
-      
-      # Saves the bases prior to repair, for use in log file
-      buffer <- 4
-      insertseq <- indel_func(insert_df,buffer)
-      
-      # Replaces all gaps with the * symble, then removes all to prevent any shifts in the index
-      for(i in unique(insert_df$group)){
-        tmp <- filter(insert_df, group == i)
-        min_start = min(tmp$start)
-        max_start = max(tmp$start)
-        repair2[[1]][min_start:max_start] <- BString(paste0(rep("*", length(tmp$start)), collapse =""))
-        repair2[[1]][min_start-1] <- BString("N")
-      }
-      repair2[[1]] <- str_remove_all(repair2[[1]], "\\*")
-      repair2[[2]] <- str_remove_all(repair2[[2]], "-")
-      
-      # Saves the bases post repair, for use in log file
-      repinsertseq <- character()
-      for(i in 1:length(insertseq)){
-        insert_str <- str_split(insertseq[i], "", simplify = TRUE)
-        insert_str[buffer] <- "N"
-        
-        repinsertseq[i] <- insert_str[c(1:4, seq(length(insert_str)-buffer+1, length(insert_str)))] %>% 
-          paste0(collapse = "")
-      }
-    }
-    
-    # Returns the repaired genome
-    msa_consen_repair <- repair2[[1]] %>% BStringSet()
-    names(msa_consen_repair) <- names(repair2)[1]
-    
-    # Writes the repaired Genome
-    writeXStringSet(msa_consen_repair, paste0(argv$output, "/", x, "_pseudoref.fasta"))
-                                                                                                                                                                                                              
+    writeXStringSet(repair2[1], paste0(argv$output, "/", x, "_pseudoref.fasta"))
+  }else{
+    log <- paste(paste0("Seqs used in ", x, "_pseudoref: \n"), paste0(sub_seqs_names, collapse = "\n")) 
+    writeXStringSet(msa_consen, paste0(argv$output, "/", x, "_pseudo.fasta"))
+    write_file(log,  paste0(argv$output, "/",  x, "_logfile.txt"))
   }
   
   if(bed){# This section writes a bed file
@@ -228,101 +135,8 @@ pseudo_gen <- function(x){
                 col_names = FALSE)
     }
   
-  # Generates and writes a log file containing all seqs that were used in pseudo Genome generation
-  if(repair){
-    left_msa_text <- unrepaired %>% 
-      Biostrings::subseq(start =1, end = f_2+5) %>% 
-      as.character() 
-    
-    right_msa_text <- unrepaired %>% 
-      Biostrings::subseq(start = (l_2+1)-5, end = length(repair2[[1]])) %>% 
-      as.character() 
-    
-    log <- paste(paste0("Seqs used in ", x, "_pseudoref:\n"), paste0(sub_seqs_names, collapse = "\n")) %>%
-      paste0("\n",., "\n\nRepaired using ", names(repair_ref),
-             "\n\nREPAIR: \nA 5 base overlap is shown which was not repaired \n\nLeft pseudo: \n ",
-             left_msa_text[1], "\n",
-             "Left ref genome: \n",
-             left_msa_text[2],
-             "\n\n",
-             "Right pseudo: \n",
-             right_msa_text[1], "\n",
-             "Right ref genome: \n",
-             right_msa_text[2])
-    
-    
-    # Adding any insertions into the log file 
-    if(length(insert) != 0){
-      insrt_txt <- "\n\nINSERTIONS\n\nOriginal\t\t\tReplaced\t\t\tSequences"
-      for(i in unique(insert_df$group)){
-        for_dat <- filter(insert_df, group == i)
-        
-        #Find the new index locations of the inserts
-        ts <- matchPattern(repinsertseq[i], repair2[[1]]) %>% 
-          .@ranges %>%
-          as.data.frame()
-        rep_insert_log <- Biostrings::subseq(repair2, start = ts$start, end = ts$end) %>%
-          as.character()
-        
-        #Find the index of the insert locations on the unrepaired genome
-        ts <- matchPattern(insertseq[i], unrepaired[[1]]) %>% 
-          .@ranges %>%
-          as.data.frame()
-        insert_log <- Biostrings::subseq(unrepaired, start = ts$start, end = ts$end) %>%
-          as.character()
-        
-        insrt_txt[i+1] <- paste0("\n",insert_log[1],"\t\t\t",rep_insert_log[1],"\t\t\t",names(repair2)[1],"\n",
-                                 insert_log[2],"\t\t\t",rep_insert_log[2],"\t\t\t",names(repair2)[2],"\n")
-      }
-     
-      log <- paste0(log, paste0(insrt_txt, collapse = ""))
-      
-    }else{
-      log <- paste0(log, "\n\n", "NO INSERTIONS")
-    }
-    
-    # Adding any deletions into the log file 
-    if(length(del) != 0){
-      del_txt <- "\n\nDELETIONS\n\nOriginal\t\t\tReplaced\t\t\tSequences"
-      for(i in unique(del_df$group)){
-        for_dat <- filter(del_df, group == i)
-        
-        #Find the new index locations of the inserts
-        ts <- matchPattern(repdelseq[i], repair2[[1]]) %>% 
-          .@ranges %>%
-          as.data.frame()
-        rep_del_log <- Biostrings::subseq(repair2, start = ts$start, end = ts$end) %>%
-          as.character()
-        
-        #Find the index of the insert locations on the unrepaired genome
-        ts <- matchPattern(delseq[i], unrepaired[[1]]) %>% 
-          .@ranges %>%
-          as.data.frame()
-        del_log <- Biostrings::subseq(unrepaired, start = ts$start, end = ts$end) %>%
-          as.character()
-        
-        del_txt[i+1] <- paste0("\n",del_log[1],"\t\t\t",rep_del_log[1],"\t\t\t",names(repair2)[1],"\n",
-                                 del_log[2],"\t\t\t",rep_del_log[2],"\t\t\t",names(repair2)[2],"\n")
-      }
-      
-      log <- paste0(log, paste0(del_txt, collapse = ""))
-      
-    }else{log <- paste0(log, "\n\nNO DELETIONS")}
-    
-    #Final Validation of ref genome repair
-    log <- paste0(log,paste0("\n\nFinal Validation of repair:\n",repair2[[2]] == repair_ref))
-    
-    if(sum(base_check[base_check$names == "consen",-1]) != 0){
-      log <- paste0(log, "\n\nNon [ACGT] bases found in ", x, " consensus sequence\n\n")
-    }
-    
-    }else{
-    log <- paste(paste0("Seqs used in ", x, "_pseudoref: \n"), paste0(sub_seqs_names, collapse = "\n")) 
-    writeXStringSet(msa_consen, paste0(argv$output, "/", x, "_pseudo.fasta"))
-    }
-  
   cat(paste0("Saving files for ", x),"\n")
-  write_file(log,  paste0(argv$output, "/",  x, "_logfile.txt"))
+
 
 }
 
@@ -330,7 +144,7 @@ pseudo_gen <- function(x){
 if(argv$m == 1){
   dat <- lapply(pango_list, pseudo_gen)
 }else{
-  dat <- mclapply(pango_list, pseudo_gen, mc.cores = as.numeric(argv$m))
+  dat <- parallel::mclapply(pango_list, pseudo_gen, mc.cores = as.numeric(argv$m))
 }
 
 
