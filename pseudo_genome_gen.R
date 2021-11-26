@@ -11,7 +11,7 @@ p <- add_argument(p, "--input", help="input directory")
 p <- add_argument(p, "--output", help="output directory")
 p <- add_argument(p, "--repair", help="Use a ref genome to repair 5' and 3' regions (TRUE/FALSE)", default = TRUE)
 p <- add_argument(p, "--repair_genome", help= "The dir of the ref genome", default = "resources/MN908947.3.fasta")
-p <- add_argument(p, "--m", help= "Number of Cores (Windows OS has to use 1)", default = 1)
+p <- add_argument(p, "--cores", help= "Number of Cores (Windows OS has to use 1)", default = 1)
 p <- add_argument(p, "--bed", help= "Should a .bed file written (requires --repair = TRUE)", default = TRUE)
 
 argv <- parse_args(p)
