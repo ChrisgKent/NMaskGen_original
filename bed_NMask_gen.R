@@ -3,17 +3,18 @@ suppressMessages(library(tidyverse))
 suppressMessages(library(Biostrings))
 suppressMessages(library(argparser))
 
-# This can generate the psuedo genome from the bed file produced via pseudo_genome_gen.R
+# This can generate the psuedo genome from the bed file pdroduced via pseudo_genome_gen.R
 ## Currently being used as a sanity checker
 
-p <- arg_parser("De novo pseudo genome generator") 
+p <- arg_parser("De novo pseudo genome generator", hide.opts = TRUE) 
 # Adding flags
 p <- add_argument(p, "--ref", help="Directory of the reference genome",  default = "resources/MN908947.3.fasta")
-p <- add_argument(p, "--bed", help= "Directory that contains the .bed files", )
-p <- add_argument(p, "--second_bed", help= "Directory of a second .bed file", default = "NA")
+p <- add_argument(p, "--bed1", help= "Directory that contains the .bed files")
+p <- add_argument(p, "--bed2", help= "(optional): Directory of a second .bed file", default = "NA")
 
-p <- add_argument(p, "--prefix_bed1", help= "Prefix added to all columns in the full.bed file", default = "NA")
-p <- add_argument(p, "--prefix_bed2", help= "Prefix added to all columns in the full.bed file. \n These arguments are only needed if files in bed1 and bed2 have the same name", default = "NA")
+p <- add_argument(p, "--prefix_bed1", help= "(optional): Prefix added to names from bed1", default = "NA")
+p <- add_argument(p, "--prefix_bed2", help= "(optional): Prefix added to names from bed2", 
+                  default = "NA")
 
 p <- add_argument(p, "--output", help= "Directory that output files are written", default = "NMask")
 p <- add_argument(p, "--name", help= "Output file prefix", default = "NMask")
@@ -30,13 +31,13 @@ if(!dir.exists(argv$output)){# If the dir does not exist
 ref <- readDNAStringSet(argv$ref)
 
 # Reads the bed 
-files <- list.files(argv$bed, pattern = ".bed") # Detects all files with .bed in the name
+files <- list.files(argv$bed1, pattern = ".bed") # Detects all files with .bed in the name
 bed_list <- data.frame(names = str_remove(files, ".bed"),files) 
 
 bed_files <- list() # Reads each file in
 for(i in 1:length(files)){
   # Reads the file 
-  dat <- read_delim(paste0(argv$bed,"/", bed_list$files[i]), col_names = FALSE, show_col_types = FALSE)
+  dat <- read_delim(paste0(argv$bed1,"/", bed_list$files[i]), col_names = FALSE, show_col_types = FALSE)
   # Adds colnames
   names(dat) <- c("chrom", "chromStart", "chromEnd", "name")
   # Parses the data to generate the base change
@@ -58,13 +59,13 @@ cat(paste0(length(files), " .bed files read in for bed1 \n"))
 
 
 # If a second bed file is given
-if(argv$second_bed != "NA"){
+if(argv$bed2 != "NA"){
   # Finds all .bed files in the given dir
-  files2 <- list.files(argv$second_bed, pattern = ".bed")
+  files2 <- list.files(argv$bed2, pattern = ".bed")
   bed_list2 <- data.frame(names = str_remove(files2, ".bed"),files2)
   for(i in 1:length(files2)){
     # Reads the bed files in 
-    dat <- read_delim(paste0(argv$second_bed,"/", bed_list2$files[i]), col_names = FALSE, show_col_types = FALSE)
+    dat <- read_delim(paste0(argv$bed2,"/", bed_list2$files[i]), col_names = FALSE, show_col_types = FALSE)
     names(dat) <- c("chrom", "chromStart", "chromEnd", "name")
     # Parses the .bed file
     dat <- mutate(dat, ref = str_remove_all(name, "to[A-Z]"),
@@ -104,12 +105,15 @@ write_delim(dat_df, paste0(argv$output, "/", argv$name, "_log"), delim = "\t")
 dat_df2 <-dat_df %>% select(chrom, chromStart, chromEnd)
 write_delim(dat_df2, paste0(argv$output, "/", argv$name, ".bed"), delim = "\t", col_names = FALSE)
 
+# Calls bedtools maskfasta on the referance genome (-fi), provides the bed file, that contains the varied positions 
+## and an output location (-fo)
 system(paste0("bedtools maskfasta -fi ", argv$ref, " -bed ", paste0(argv$output, "/", argv$name, ".bed"),  " -fo ", argv$output,"/",argv$name, "_NMasked.fasta"))
 
+# As the name of the NMasked fasta will be that of the referance genome
+## The output from bedtools is read in, the name changed and resaved.
 tmp <- readDNAStringSet(paste0(argv$output,"/",argv$name, "_NMasked.fasta"))
 names(tmp) <- paste0(argv$name, "_NMasked")
 writeXStringSet(tmp, paste0(argv$output,"/",argv$name, "_NMasked.fasta"))
-
 
 
 cat(paste0("Compelete \n"))
