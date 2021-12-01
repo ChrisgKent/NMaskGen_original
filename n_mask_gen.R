@@ -154,12 +154,22 @@ cat(paste0("Saving N-Mask base \n"))
 
 
 # Generates anf writes the bed file, using only the positions that need masking
-bed_file <- bed_test %>% 
-  mutate(chrom = output_name,
-         chromStart = pos_1base-1,
-         chromEnd = pos_1base,
-         name = seq_source) %>%
-  select(chrom,chromStart,chromEnd,name)
+if(argv$mask_base == "ClusterOmegaConsensus"){
+  bed_file <- bed_test %>% 
+    mutate(chrom = output_name,
+           chromStart = pos_1base-1,
+           chromEnd = pos_1base,
+           name = seq_source) %>%
+    select(chrom,chromStart,chromEnd,name)
+}else{
+  bed_file <- bed_test %>% 
+    mutate(chrom = consen_seq,
+           chromStart = pos_1base-1,
+           chromEnd = pos_1base,
+           name = seq_source) %>%
+    select(chrom,chromStart,chromEnd,name)
+  }
+
 
 cat(paste0("Saving .bed file \n"))
 

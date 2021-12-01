@@ -65,10 +65,8 @@ pseudo_gen <- function(x){
   writeXStringSet(BStringSet(msa_seqs), paste0(argv$output, "/tmp/", x, "_msa.fasta"))
   
   # Uses the consensus Sequence to create an unanchored pseudo Genome
-  msa_consen <- msa::msaConsensusSequence(msa_seqs) %>% 
-    str_replace_all("\\?", "N") %>% # If there are two bases with equal freq "?" will be returned. This is turned into an N
-    str_remove_all("-") %>% # If one seq has an insert a "--" will be inserted. If the insert was in more samples the bases would be returned.
-    BStringSet()
+  source("consensus_gen.R")
+  msa_consen <- consen_gen(DNAStringSet(msa_seqs)) 
   names(msa_consen) <- paste0(x, "_pseudoref")
   
   # Checks for non standard bases
